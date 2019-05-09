@@ -1,0 +1,12 @@
+[submodule "sw/normalize_bedgraph"]
+	path = src/normalize_bedgraph
+	url = https://github.com/porchard/normalize_bedgraph
+[submodule "src/ATACseq-Snakemake"]
+	path = src/ATACseq-Snakemake
+	url = https://github.com/porchard/ATACseq-Snakemake.git
+[submodule "src/ataqv"]
+	path = src/ataqv
+	url = https://github.com/ParkerLab/ataqv.git
+[submodule "src/normalize_bedgraph"]
+	path = src/normalize_bedgraph
+	url = https://github.com/porchard/normalize_bedgraph.git
