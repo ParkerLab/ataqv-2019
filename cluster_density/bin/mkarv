@@ -1,0 +1,635 @@
+#!/usr/bin/env python
+
+from __future__ import print_function
+
+import argparse
+import collections
+import csv
+import decimal
+import functools
+import gzip
+import json
+import logging
+import multiprocessing
+import os.path
+import re
+import shutil
+import signal
+import sys
+import textwrap
+
+
+if sys.version_info > (3,):
+    long = int
+
+
+LOGGING_FORMAT = '%(message)s'
+PROGRAM = 'mkarv'
+PROGRAM_VERSION = '1.1.0'
+
+METADATA_FIELDS = [
+    'name',
+    'organism',
+    'library',
+    'description',
+    'metrics_url',
+    'web_url',
+]
+
+METRICS_EXTENSION_RE = re.compile('\.json(\.gz)?$')
+
+
+def worker_init():
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        return json.JSONEncoder.default(self, obj)
+
+
+def open_maybe_gzipped(filename):
+    """
+    Open a possibly gzipped file.
+
+    Parameters
+    ----------
+    filename: str
+        The name of the file to open.
+
+    Returns
+    -------
+    file
+        An open file object.
+    """
+    with open(filename, 'rb') as test_read:
+        byte1, byte2 = test_read.read(1), test_read.read(1)
+        if byte1 and ord(byte1) == 0x1f and byte2 and ord(byte2) == 0x8b:
+            f = gzip.open(filename, mode='rt')
+        else:
+            f = open(filename, 'rt')
+    return f
+
+
+SRR891268_FRAGMENT_LENGTH_COUNTS = {
+    0: 0, 1: 0, 2: 165, 3: 132, 4: 239, 5: 197, 6: 170, 7: 192, 8: 163, 9: 901,
+    10: 239, 11: 288, 12: 203, 13: 230, 14: 269, 15: 216, 16: 217, 17: 239, 18: 349, 19: 102772,
+    20: 38430, 21: 13322, 22: 6344, 23: 3480, 24: 2802, 25: 5442, 26: 54151, 27: 46208, 28: 48966, 29: 54554,
+    30: 42567, 31: 40677, 32: 44095, 33: 56504, 34: 83853, 35: 162561, 36: 259409, 37: 301874, 38: 343708, 39: 457573,
+    40: 602141, 41: 732222, 42: 758507, 43: 638222, 44: 622608, 45: 607122, 46: 545371, 47: 474326, 48: 438870, 49: 477162,
+    50: 585738, 51: 713027, 52: 735854, 53: 611601, 54: 546383, 55: 511933, 56: 462932, 57: 412327, 58: 371823, 59: 370474,
+    60: 399093, 61: 450787, 62: 478745, 63: 464397, 64: 461003, 65: 439120, 66: 407417, 67: 365100, 68: 321377, 69: 312042,
+    70: 321867, 71: 358749, 72: 386557, 73: 388607, 74: 387044, 75: 367136, 76: 344331, 77: 311845, 78: 279918, 79: 267320,
+    80: 267722, 81: 294306, 82: 319821, 83: 326465, 84: 324905, 85: 311648, 86: 289835, 87: 265191, 88: 237863, 89: 224360,
+    90: 220126, 91: 228293, 92: 243766, 93: 256552, 94: 260344, 95: 261961, 96: 245306, 97: 225159, 98: 205689, 99: 191332,
+    100: 185562, 101: 187187, 102: 194614, 103: 205085, 104: 211013, 105: 213640, 106: 208470, 107: 198059, 108: 181151, 109: 166221,
+    110: 161050, 111: 157520, 112: 162879, 113: 169891, 114: 175931, 115: 181301, 116: 176548, 117: 171194, 118: 160446, 119: 148721,
+    120: 141496, 121: 137461, 122: 138939, 123: 143331, 124: 152106, 125: 155849, 126: 154162, 127: 150362, 128: 144446, 129: 136382,
+    130: 129922, 131: 124362, 132: 122960, 133: 125171, 134: 130189, 135: 135800, 136: 142422, 137: 152595, 138: 155670, 139: 140754,
+    140: 127851, 141: 121675, 142: 117082, 143: 114368, 144: 117989, 145: 121776, 146: 126753, 147: 134210, 148: 141866, 149: 141271,
+    150: 140866, 151: 142327, 152: 131241, 153: 121190, 154: 118727, 155: 121470, 156: 126175, 157: 134888, 158: 145909, 159: 147630,
+    160: 139852, 161: 130138, 162: 125351, 163: 128988, 164: 141772, 165: 165210, 166: 200280, 167: 240074, 168: 240860, 169: 208452,
+    170: 176605, 171: 158839, 172: 152094, 173: 156330, 174: 178982, 175: 216289, 176: 247590, 177: 258019, 178: 243474, 179: 214406,
+    180: 191176, 181: 177264, 182: 170572, 183: 170123, 184: 181379, 185: 197911, 186: 211565, 187: 218307, 188: 214886, 189: 202526,
+    190: 190397, 191: 181025, 192: 180772, 193: 188296, 194: 201388, 195: 213677, 196: 220865, 197: 220426, 198: 213356, 199: 206727,
+    200: 202483, 201: 201852, 202: 203337, 203: 209943, 204: 216891, 205: 221673, 206: 224021, 207: 220324, 208: 214376, 209: 208302,
+    210: 207612, 211: 211641, 212: 214466, 213: 217340, 214: 219161, 215: 216843, 216: 212918, 217: 208576, 218: 203080, 219: 198121,
+    220: 196151, 221: 195857, 222: 194884, 223: 196023, 224: 194408, 225: 191388, 226: 188241, 227: 184676, 228: 181753, 229: 176865,
+    230: 173940, 231: 170477, 232: 167478, 233: 166497, 234: 164455, 235: 163207, 236: 158645, 237: 156220, 238: 151591, 239: 147814,
+    240: 144023, 241: 141002, 242: 137347, 243: 134973, 244: 132938, 245: 130879, 246: 129333, 247: 126935, 248: 123879, 249: 120331,
+    250: 117362, 251: 114938, 252: 111835, 253: 109784, 254: 107597, 255: 106853, 256: 104592, 257: 103815, 258: 101702, 259: 99371,
+    260: 97574, 261: 95779, 262: 93869, 263: 91534, 264: 89009, 265: 88211, 266: 87153, 267: 85631, 268: 85445, 269: 83358,
+    270: 82535, 271: 80610, 272: 79322, 273: 77553, 274: 75828, 275: 74740, 276: 74094, 277: 73497, 278: 73610, 279: 73050,
+    280: 71717, 281: 71425, 282: 69643, 283: 68518, 284: 67712, 285: 66797, 286: 65685, 287: 64973, 288: 64951, 289: 65261,
+    290: 65283, 291: 64394, 292: 64077, 293: 63368, 294: 61380, 295: 61108, 296: 60148, 297: 61227, 298: 61162, 299: 61834,
+    300: 61624, 301: 61865, 302: 60670, 303: 59827, 304: 58763, 305: 57698, 306: 57583, 307: 57915, 308: 58424, 309: 59207,
+    310: 59883, 311: 59457, 312: 59403, 313: 58454, 314: 58508, 315: 57070, 316: 56862, 317: 57320, 318: 57465, 319: 58727,
+    320: 59371, 321: 58898, 322: 60111, 323: 58784, 324: 58233, 325: 58105, 326: 57269, 327: 57250, 328: 58867, 329: 59416,
+    330: 60090, 331: 60583, 332: 60769, 333: 60117, 334: 60263, 335: 60067, 336: 60430, 337: 60419, 338: 61150, 339: 61173,
+    340: 61759, 341: 63069, 342: 62827, 343: 63218, 344: 62993, 345: 63769, 346: 63980, 347: 63788, 348: 64543, 349: 65403,
+    350: 65005, 351: 66500, 352: 66206, 353: 67493, 354: 67669, 355: 68302, 356: 67442, 357: 68593, 358: 69107, 359: 69767,
+    360: 70439, 361: 70157, 362: 70611, 363: 71730, 364: 71782, 365: 71979, 366: 72352, 367: 73663, 368: 74158, 369: 75152,
+    370: 75569, 371: 75181, 372: 75965, 373: 75794, 374: 75093, 375: 76812, 376: 76322, 377: 77647, 378: 77312, 379: 78356,
+    380: 78940, 381: 79320, 382: 79696, 383: 79234, 384: 80132, 385: 79882, 386: 78894, 387: 80234, 388: 81441, 389: 81069,
+    390: 82093, 391: 83042, 392: 82487, 393: 82678, 394: 81962, 395: 81580, 396: 81596, 397: 81662, 398: 81066, 399: 81770,
+    400: 81602, 401: 82454, 402: 82648, 403: 82309, 404: 81494, 405: 81579, 406: 80701, 407: 79610, 408: 78826, 409: 78996,
+    410: 78116, 411: 78220, 412: 77007, 413: 77411, 414: 77213, 415: 75964, 416: 75416, 417: 74160, 418: 73850, 419: 72972,
+    420: 72073, 421: 71295, 422: 71030, 423: 70021, 424: 69870, 425: 69194, 426: 67825, 427: 67143, 428: 65334, 429: 64479,
+    430: 63372, 431: 62774, 432: 61439, 433: 61641, 434: 60658, 435: 60132, 436: 58803, 437: 58571, 438: 57081, 439: 56486,
+    440: 55667, 441: 53969, 442: 54021, 443: 52874, 444: 52139, 445: 51011, 446: 50935, 447: 50881, 448: 49415, 449: 48589,
+    450: 47645, 451: 47084, 452: 46293, 453: 46069, 454: 44908, 455: 44752, 456: 43694, 457: 43471, 458: 42450, 459: 41847,
+    460: 41850, 461: 41314, 462: 40494, 463: 40185, 464: 39632, 465: 39259, 466: 38706, 467: 38383, 468: 37977, 469: 37315,
+    470: 37337, 471: 37186, 472: 36153, 473: 36004, 474: 36024, 475: 35425, 476: 34555, 477: 34391, 478: 34708, 479: 34461,
+    480: 34396, 481: 33852, 482: 33287, 483: 33561, 484: 33599, 485: 33076, 486: 32681, 487: 32387, 488: 32482, 489: 32259,
+    490: 32410, 491: 31910, 492: 31860, 493: 31672, 494: 31022, 495: 31076, 496: 31139, 497: 31495, 498: 31172, 499: 31304,
+    500: 31026, 501: 31567, 502: 30746, 503: 31490, 504: 31168, 505: 31124, 506: 31214, 507: 31215, 508: 31109, 509: 31425,
+    510: 31247, 511: 31243, 512: 31010, 513: 31342, 514: 31417, 515: 30605, 516: 31579, 517: 31568, 518: 31957, 519: 31467,
+    520: 31536, 521: 31573, 522: 31637, 523: 31875, 524: 32071, 525: 32214, 526: 32502, 527: 31952, 528: 32301, 529: 32581,
+    530: 31978, 531: 32807, 532: 33273, 533: 32864, 534: 33264, 535: 33254, 536: 33589, 537: 33644, 538: 33714, 539: 34282,
+    540: 34111, 541: 34121, 542: 34552, 543: 34947, 544: 34986, 545: 35452, 546: 34934, 547: 35240, 548: 35594, 549: 35824,
+    550: 36031, 551: 36481, 552: 35902, 553: 36509, 554: 36646, 555: 36939, 556: 37278, 557: 37371, 558: 37407, 559: 37860,
+    560: 37500, 561: 38200, 562: 37985, 563: 38248, 564: 38037, 565: 38380, 566: 38481, 567: 39303, 568: 39246, 569: 39129,
+    570: 39592, 571: 39721, 572: 39806, 573: 39295, 574: 39593, 575: 39802, 576: 40527, 577: 40155, 578: 40094, 579: 40107,
+    580: 40103, 581: 39967, 582: 40795, 583: 40421, 584: 40976, 585: 40549, 586: 40702, 587: 40734, 588: 40343, 589: 40574,
+    590: 40772, 591: 40674, 592: 40666, 593: 40799, 594: 40515, 595: 40197, 596: 40030, 597: 39485, 598: 39649, 599: 39709,
+    600: 40029, 601: 39659, 602: 39511, 603: 39547, 604: 39382, 605: 38729, 606: 38917, 607: 38565, 608: 38290, 609: 38455,
+    610: 37620, 611: 37513, 612: 37378, 613: 37103, 614: 36854, 615: 36974, 616: 36610, 617: 35828, 618: 35378, 619: 34972,
+    620: 34959, 621: 34687, 622: 34661, 623: 34349, 624: 33666, 625: 34085, 626: 32872, 627: 33068, 628: 32466, 629: 32179,
+    630: 31912, 631: 31367, 632: 31323, 633: 30299, 634: 30056, 635: 30127, 636: 29963, 637: 29165, 638: 28840, 639: 28995,
+    640: 28606, 641: 28484, 642: 28087, 643: 27458, 644: 27532, 645: 27582, 646: 26490, 647: 26715, 648: 25890, 649: 25583,
+    650: 25234, 651: 25376, 652: 24609, 653: 24505, 654: 24892, 655: 24298, 656: 24165, 657: 24034, 658: 23687, 659: 23254,
+    660: 23550, 661: 22803, 662: 22538, 663: 22582, 664: 22587, 665: 22193, 666: 21803, 667: 21817, 668: 21697, 669: 21379,
+    670: 21452, 671: 21452, 672: 20733, 673: 20626, 674: 21043, 675: 20180, 676: 20600, 677: 20373, 678: 20215, 679: 20137,
+    680: 19824, 681: 19955, 682: 19639, 683: 19321, 684: 19323, 685: 18862, 686: 19336, 687: 18989, 688: 19381, 689: 18937,
+    690: 18809, 691: 18352, 692: 18494, 693: 18303, 694: 18169, 695: 17883, 696: 17678, 697: 17419, 698: 17628, 699: 17933,
+    700: 17447, 701: 17896, 702: 17230, 703: 17515, 704: 17208, 705: 17148, 706: 16858, 707: 17002, 708: 16608, 709: 16469,
+    710: 16629, 711: 16775, 712: 16443, 713: 16104, 714: 16076, 715: 16339, 716: 15785, 717: 15425, 718: 15192, 719: 15196,
+    720: 15361, 721: 14789, 722: 15007, 723: 14906, 724: 14804, 725: 14273, 726: 14568, 727: 14083, 728: 14114, 729: 13802,
+    730: 14018, 731: 14092, 732: 14008, 733: 14107, 734: 13524, 735: 13181, 736: 13222, 737: 13398, 738: 13192, 739: 12926,
+    740: 12515, 741: 12514, 742: 12343, 743: 12132, 744: 11814, 745: 11957, 746: 11657, 747: 11549, 748: 11572, 749: 11322,
+    750: 11118, 751: 10853, 752: 11087, 753: 10676, 754: 10526, 755: 10265, 756: 10559, 757: 10070, 758: 9593, 759: 9415,
+    760: 9713, 761: 9294, 762: 8795, 763: 8537, 764: 8713, 765: 8721, 766: 8247, 767: 7659, 768: 7844, 769: 7909,
+    770: 7551, 771: 7075, 772: 7198, 773: 7272, 774: 6920, 775: 6455, 776: 6806, 777: 6321, 778: 6345, 779: 5538,
+    780: 5460, 781: 5436, 782: 5131, 783: 4870, 784: 5068, 785: 4796, 786: 4674, 787: 3939, 788: 3758, 789: 3971,
+    790: 3687, 791: 3231, 792: 3292, 793: 3342, 794: 3205, 795: 3013, 796: 2772, 797: 2832, 798: 2669, 799: 2280,
+    800: 2279, 801: 2319, 802: 2264, 803: 2163, 804: 2190, 805: 2155, 806: 2043, 807: 1973, 808: 1877, 809: 1877,
+    810: 1889, 811: 1585, 812: 1597, 813: 1710, 814: 1647, 815: 1096, 816: 1248, 817: 1161, 818: 1284, 819: 968,
+    820: 903, 821: 877, 822: 859, 823: 781, 824: 668, 825: 637, 826: 646, 827: 671, 828: 558, 829: 664,
+    830: 587, 831: 602, 832: 590, 833: 560, 834: 519, 835: 480, 836: 431, 837: 468, 838: 371, 839: 432,
+    840: 379, 841: 405, 842: 404, 843: 227, 844: 164, 845: 148, 846: 146, 847: 106, 848: 88, 849: 117,
+    850: 106, 851: 105, 852: 82, 853: 91, 854: 103, 855: 89, 856: 92, 857: 82, 858: 72, 859: 96,
+    860: 36, 861: 41, 862: 40, 863: 41, 864: 0, 865: 0, 866: 0, 867: 0, 868: 0, 869: 0,
+    870: 0, 871: 0, 872: 0, 873: 0, 874: 0, 875: 0, 876: 0, 877: 0, 878: 0, 879: 0,
+    880: 0, 881: 0, 882: 0, 883: 0, 884: 0, 885: 0, 886: 0, 887: 0, 888: 0, 889: 0,
+    890: 0, 891: 0, 892: 0, 893: 0, 894: 0, 895: 0, 896: 0, 897: 0, 898: 0, 899: 0,
+    900: 0, 901: 0, 902: 0, 903: 0, 904: 0, 905: 0, 906: 0, 907: 0, 908: 0, 909: 0,
+    910: 0, 911: 0, 912: 0, 913: 0, 914: 0, 915: 0, 916: 0, 917: 0, 918: 0, 919: 0,
+    920: 0, 921: 0, 922: 0, 923: 0, 924: 0, 925: 0, 926: 0, 927: 0, 928: 0, 929: 0,
+    930: 0, 931: 0, 932: 0, 933: 0, 934: 0, 935: 0, 936: 0, 937: 0, 938: 0, 939: 0,
+    940: 0, 941: 0, 942: 0, 943: 0, 944: 0, 945: 0, 946: 0, 947: 0, 948: 0, 949: 0,
+    950: 0, 951: 0, 952: 0, 953: 0, 954: 0, 955: 0, 956: 0, 957: 0, 958: 0, 959: 0,
+    960: 0, 961: 0, 962: 0, 963: 0, 964: 0, 965: 0, 966: 0, 967: 0, 968: 0, 969: 0,
+    970: 0, 971: 0, 972: 0, 973: 0, 974: 0, 975: 0, 976: 0, 977: 0, 978: 0, 979: 0,
+    980: 0, 981: 0, 982: 0, 983: 0, 984: 0, 985: 0, 986: 0, 987: 0, 988: 0, 989: 0,
+    990: 0, 991: 0, 992: 0, 993: 0, 994: 0, 995: 0, 996: 0, 997: 0, 998: 0, 999: 0, 1000: 0
+}
+
+SRR891268_PEAK_METRICS = {
+    'source': 'peaks called for SRR891268',
+    "cumulative_fraction_of_hqaa": [
+        0.0163964049731551, 0.027216153163411, 0.0359637644705181, 0.0434291741484764, 0.0500183908169834,
+        0.0559392293145575, 0.0612923988882941, 0.0662007173115321, 0.0707229858326414, 0.0749044167859025,
+        0.0787922130691832, 0.0824174142040221, 0.0858121611571427, 0.0889925376823308, 0.0919792456408947,
+        0.0947849317468258, 0.0974304969177914, 0.0999240891940756, 0.10228496396078, 0.104526577427755,
+        0.106652167578435, 0.108675376408607, 0.110606037302392, 0.112448157927812, 0.114206236958574,
+        0.115886126651625, 0.117494276432989, 0.11903846277108, 0.12052110088305, 0.121948839251281,
+        0.123325990763546, 0.124654307115802, 0.125937265159114, 0.12718021287432, 0.128379726492051,
+        0.129542335060873, 0.130671595054394, 0.131765608801996, 0.132828237997038, 0.133858885470442,
+        0.134859621408342, 0.13583313970679, 0.136779002441798, 0.137699001120594, 0.138595471337789,
+        0.139466608315728, 0.140315676578696, 0.141144122602899, 0.141951004188239, 0.142740939442239,
+        0.14351084962655, 0.144261265558129, 0.144996553206444, 0.145712957041528, 0.146414537813098,
+        0.147099411120958, 0.147769103063858, 0.148424900872919, 0.14906754769188, 0.149695358176903,
+        0.150311610122695, 0.150915772712301, 0.151507381480882, 0.15208721938345, 0.152655565098907,
+        0.153212737117427, 0.153759916506739, 0.154296134525897, 0.154821975073552, 0.155337889344119,
+        0.15584365174039, 0.156338797797529, 0.156824707639622, 0.157301301644127, 0.157770477481663,
+        0.158230257859067, 0.158680390638284, 0.159121990534923, 0.159555084089833, 0.15998037463548,
+        0.16039723846194, 0.16080487934378, 0.161205725768574, 0.161599631761661, 0.161982244623995,
+        0.16235726680385, 0.16272556087878, 0.163085507857066, 0.163434772144101, 0.163774601159732,
+        0.164106401568893, 0.164430014126499, 0.164744058708462, 0.1650473807879, 0.165339144328109,
+        0.165618088638815, 0.16588357673967, 0.166133538444544, 0.166362094955642, 0.166554834592593
+    ],
+    "cumulative_fraction_of_territory": [
+        0.0387390333266788, 0.0694151905765422, 0.0969831363497163, 0.1224983823457, 0.146429400732817,
+        0.16915089170245, 0.190838564627419, 0.211623116854598, 0.23164056298413, 0.250910879641147,
+        0.269544639845912, 0.287627732008884, 0.305168778203944, 0.322258781005287, 0.33888374569771,
+        0.355088868934009, 0.370912700800392, 0.386351161043484, 0.401439550316937, 0.416226222392678,
+        0.430699361152329, 0.444907523457349, 0.458854586471582, 0.472508997466421, 0.485921639601632,
+        0.49907345938633, 0.511987055146914, 0.524688810060199, 0.537154168755181, 0.549395648932267,
+        0.561438156753476, 0.573243086744544, 0.584829123142656, 0.596196081320964, 0.607338920966471,
+        0.618267870406648, 0.628991588640744, 0.639495508610322, 0.649806031954883, 0.659908850093577,
+        0.669819619383257, 0.679540333793897, 0.689059712624985, 0.698390144338132, 0.707546934499176,
+        0.716498382678028, 0.725259905216637, 0.733849780173118, 0.742245261519594, 0.750477421954861,
+        0.75853555312164, 0.766429403317593, 0.774165102154128, 0.781725534722282, 0.789123827991066,
+        0.796380715555696, 0.803469315746863, 0.810401112354614, 0.817182733482853, 0.823795421043654,
+        0.83025134194641, 0.836560244488782, 0.842711955731356, 0.848730698716805, 0.85460018935699,
+        0.860335327038678, 0.865943829164185, 0.8714185875998, 0.87677428018007, 0.882020802904136,
+        0.887148185922118, 0.892171014755138, 0.897100256238066, 0.901929817684863, 0.9066702966767,
+        0.911317262169185, 0.915879742415266, 0.920364697847175, 0.924764207973062, 0.929086248672833,
+        0.933336340289291, 0.937501540480277, 0.941589178931721, 0.945604000553659, 0.949527062631317,
+        0.953364033208979, 0.957122001957672, 0.960787934221811, 0.964365411762278, 0.967851425161423,
+        0.971279207252187, 0.974646302497468, 0.977935706764412, 0.981167765931852, 0.984336258074955,
+        0.987467529445167, 0.990598800815379, 0.993733764722583, 0.996865036092795, 1
+    ]
+}
+
+
+def locate_template_directory(start):
+    start_dir = os.path.abspath(
+        os.path.join(
+            os.path.dirname(start),
+            os.path.dirname(os.path.islink(start) and os.readlink(start) or start)
+        )
+    )
+    template_dir = os.path.normpath(os.path.join(start_dir, '../share/ataqv/web'))
+    if not os.path.isdir(template_dir):
+        template_dir = os.path.normpath(os.path.join(start_dir, '../web'))
+    return template_dir
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        prog=PROGRAM,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description=textwrap.dedent("""
+        Given one or more ataqv metrics files in JSON format, creates
+        an instance of the ataqv result visualization tool. The web
+        application is copied into the named directory, and the JSON
+        results are translated for it. The resulting directory can be
+        loaded into a web browser locally by opening the index.html
+        file, or published with a web server like Apache or nginx.
+        """) + '\n\n'
+    )
+
+    parser.add_argument('-c', '--concurrency', type=int, default=1, dest='concurrency', help='The number of concurrent processes to use (default: 1).')
+    parser.add_argument('-d', '--description', help='A description for the viewer instance.')
+    parser.add_argument('-f', '--force', action='store_true', help='Overwrite the output directory if it exists.')
+    parser.add_argument('-i', '--indent', action='store_true', help='If indent is given, JSON output will be pretty-printed and indented.')
+    parser.add_argument('-m', '--maximum-fragment-length', type=int, default=1000, help='The maximum fragment length for which the distance to the reference fragment length count distribution will be measured.')
+
+    parser.add_argument('-p', '--peak-reference', default="SRR891268", help=(
+        """A reference set of peak metrics to plot. The default value is "SRR891268", """
+        """the peak metrics of that sample in the ATAC-seq paper, as generated with MACS2 """
+        """in our pipeline. It can be specified as "calculate", in which case these """
+        """metrics will be averaged from the given metrics. It can also be the name of a """
+        """JSON file, which must contain an object with two keys, "cumulative_fraction_of_hqaa" """
+        """and "cumulative_fraction_of_territory", the value of each being an array """
+        """of fractions of high-quality autosomal alignments (HQAA) or total """
+        """peak territory, respectively. A tab- or comma-separated value file may also be given, """
+        """in which each line contains two fractions, of HQAA and peak territory. """
+        """All of these arrays should represent values at percentiles from 1-100."""
+    ))
+
+    parser.add_argument('-r', '--reference', default="SRR891268", help=(
+        """How to make the reference fragment length count distribution. The default """
+        """value is "SRR891268", the fragment length distribution of that sample in the """
+        """ATAC-seq paper. It can be specified as "calculate", in which case a """
+        """distance will be calculated for each set of metrics """
+        """from a reference distribution constructed from the rest """
+        """of the given metrics. It can also be the name of a file """
+        """containing a reference distribution. This file may be in """
+        """JSON format, containing an object mapping fragment """
+        """lengths to counts (e.g. "{0: 0, 1: 10, 2: 17}", or it """
+        """may be a tab- or comma-separated value file in which """
+        """each line contains a fragment length and count. It may """
+    ))
+
+    parser.add_argument('-t', '--template-directory', default=locate_template_directory(sys.argv[0]), help=("""The location of the web app directory template."""))
+
+    parser.add_argument('-v', '--verbose', action='store_true', help='Talk more.')
+    parser.add_argument('--version', action='version', version=PROGRAM_VERSION)
+    parser.add_argument('directory', help=('The path to the directory where the web app will be created.'))
+    parser.add_argument('metrics', nargs='*', help='One or more ataqv metrics files in JSON format.')
+
+    return parser.parse_args()
+
+
+def add_fraction_of_reads(fragment_length_counts):
+    """
+    Given a map of fragment lengths to read counts, calculate the fraction of all reads represented at each fragment length.
+    """
+    total_reads = 0.0
+    for fragment_length, count in fragment_length_counts.items():
+        total_reads += count
+
+    for fragment_length, count in fragment_length_counts.items():
+        if total_reads < 1:
+            fraction = 0
+        else:
+            fraction = (count / total_reads)
+
+        fragment_length_counts[fragment_length] = [count, fraction]
+
+
+def prepare_fragment_length_counts(fragment_length_counts, max_fragment_length):
+    """
+    Truncate a list of fragment length counts to the requested maximum fragment length.
+
+    The fraction of total reads will be recalculated for each fragment
+    length.
+    """
+
+    # adjust the distribution to the requested maximum fragment length
+    prepared_counts = collections.defaultdict(long)
+    for fragment_length, count, fraction_of_total_reads in fragment_length_counts:
+        if fragment_length <= max_fragment_length:
+            prepared_counts[fragment_length] = count
+
+    add_fraction_of_reads(prepared_counts)
+
+    return prepared_counts
+
+
+def construct_fragment_length_reference(data, max_fragment_length):
+    """
+    Construct a reference fragment length density distribution from all metrics in `data`.
+    """
+    metrics = data['metrics'].values()
+    metrics_count = len(metrics)
+
+    reference_distribution = collections.defaultdict(long)
+    for m in metrics:
+        for fragment_length, [count, fraction_of_total_reads] in m['fragment_length_counts'].items():
+            if fragment_length <= max_fragment_length:
+                reference_distribution[fragment_length] += count
+
+    for fragment_length, count in reference_distribution.items():
+        reference_distribution[fragment_length] /= metrics_count
+
+    add_fraction_of_reads(reference_distribution)
+
+    return {
+        'source': 'calculated from ' + ', '.join(sorted([m['name'] for m in metrics])),
+        'distribution': reference_distribution
+    }
+
+
+def make_cdf(fragment_length_distribution):
+    """
+    Returns the cumulative distribution function of a map of fragment lengths to counts and fractions.
+    """
+    cdf = []
+    cumulative_probability_at_fragment_length = 0.0
+    for fragment_length, [count, fraction_of_total_reads] in sorted(fragment_length_distribution.items()):
+        cumulative_probability_at_fragment_length += fraction_of_total_reads
+        cdf.append(cumulative_probability_at_fragment_length)
+    return cdf
+
+
+def calculate_fragment_length_distance(metrics, reference_distribution, max_fragment_length):
+    """
+    Calculate the distance to the reference fragment length distribution.
+
+    The distance is the largest difference between the cumulative
+    distribution functions of the two fragment length distributions.
+    """
+
+    distance = 0
+
+    reference_cdf = make_cdf(reference_distribution)
+
+    nonreference_cdf = make_cdf(metrics['fragment_length_counts'])
+
+    diff = list(map(lambda x: x[0] - x[1], zip(nonreference_cdf, reference_cdf)))
+    if diff:
+        distance = (abs(max(diff)) > abs(min(diff))) and max(diff) or min(diff)
+
+    return distance
+
+
+def add_fragment_length_distances(data, reference, max_fragment_length):
+    if reference == 'calculate':
+        fragment_length_reference = construct_fragment_length_reference(data, max_fragment_length)
+    elif reference == 'SRR891268':
+        add_fraction_of_reads(SRR891268_FRAGMENT_LENGTH_COUNTS)
+        fragment_length_reference = {
+            'source': 'the fragment length distribution from SRR891268',
+            'distribution': SRR891268_FRAGMENT_LENGTH_COUNTS
+        }
+    else:
+        if not os.path.exists(reference):
+            raise ValueError('The given reference file ("{}") does not exist.'.format(reference))
+
+        loaded_distribution = {}
+        try:
+            loaded_distribution = {int(k): int(v) for k, v in json.load(open_maybe_gzipped(reference)).items()}
+        except:
+            with open(reference, 'rb') as f:
+                dialect = csv.Sniffer().sniff(f.read(1024))
+                f.seek(0)
+                reader = csv.reader(f, dialect)
+                loaded_distribution = {int(row[0]): int(row[1]) for row in reader}
+
+        add_fraction_of_reads(loaded_distribution)
+
+        fragment_length_reference = {
+            'source': 'loaded from ' + reference,
+            'distribution': loaded_distribution
+        }
+
+    # check for holes in the supplied reference
+    for fragment_length in range(max_fragment_length):
+        if fragment_length not in fragment_length_reference['distribution']:
+            logging.warn('Reference distribution lacks value at fragment length {}; assigning zero'.format(fragment_length))
+
+    # adjust the distribution to the requested maximum fragment length
+    cleaned_distribution = collections.defaultdict(long)
+    for fragment_length, [count, fraction_of_all_reads] in fragment_length_reference['distribution'].items():
+        if fragment_length <= max_fragment_length:
+            cleaned_distribution[fragment_length] = count
+
+    add_fraction_of_reads(cleaned_distribution)
+
+    fragment_length_reference['distribution'] = cleaned_distribution
+
+    data['fragment_length_reference'] = fragment_length_reference
+
+    for name, metrics in sorted(data['metrics'].items()):
+        metrics['fragment_length_distance'] = calculate_fragment_length_distance(metrics, fragment_length_reference['distribution'], max_fragment_length)
+        data['metrics'][name] = metrics
+
+
+def calculate_reference_peak_metrics(data):
+    reference_peak_metrics = {
+        'source': 'calculated from ' + ', '.join(sorted([m['name'] for m in data['metrics'].values()])),
+        'cumulative_fraction_of_hqaa': [],
+        'cumulative_fraction_of_territory': []
+    }
+    cfh = zip(*[metrics['peak_percentiles']['cumulative_fraction_of_hqaa'] for name, metrics in sorted(data['metrics'].items())])
+    reference_peak_metrics['cumulative_fraction_of_hqaa'] = map(lambda x: sum(x) / len(x), cfh)
+
+    cft = zip(*[metrics['peak_percentiles']['cumulative_fraction_of_territory'] for name, metrics in sorted(data['metrics'].items())])
+    reference_peak_metrics['cumulative_fraction_of_territory'] = map(lambda x: sum(x) / len(x), cft)
+
+    return reference_peak_metrics
+
+
+def add_reference_peak_metrics(data, reference):
+    if reference == 'calculate':
+        data['reference_peak_metrics'] = calculate_reference_peak_metrics(data)
+    elif reference == 'SRR891268':
+        data['reference_peak_metrics'] = SRR891268_PEAK_METRICS
+    else:
+        if not os.path.exists(reference):
+            raise ValueError('The given reference file ("{}") does not exist.'.format(reference))
+
+        try:
+            reference_peak_metrics = json.load(open_maybe_gzipped(reference))
+            reference_peak_metrics['source'] = 'loaded from {}'.format(reference)
+        except:
+            with open(reference, 'rb') as f:
+                dialect = csv.Sniffer().sniff(f.read(1024))
+                f.seek(0)
+                reader = csv.reader(f, dialect)
+
+                reference_peak_metrics = {
+                    'source': 'loaded from {}'.format(reference),
+                    'cumulative_fraction_of_hqaa': [],
+                    'cumulative_fraction_of_territory': []
+                }
+
+                for row in reader:
+                    reference_peak_metrics['cumulative_fraction_of_hqaa'].append(float(row[0]))
+                    reference_peak_metrics['cumulative_fraction_of_territory'].append(float(row[1]))
+
+        data['reference_peak_metrics'] = reference_peak_metrics
+
+
+PERCENTAGES = {
+    'hqaa': 'total_reads',
+    'properly_paired_and_mapped_reads': 'total_reads',
+    'secondary_reads': 'total_reads',
+    'supplementary_reads': 'total_reads',
+    'duplicate_reads': 'total_reads',
+    'unmapped_reads': 'total_reads',
+    'unmapped_mate_reads': 'total_reads',
+    'qcfailed_reads': 'total_reads',
+    'unpaired_reads': 'total_reads',
+    'reads_mapped_with_zero_quality': 'total_reads',
+    'rf_reads': 'total_reads',
+    'ff_reads': 'total_reads',
+    'rr_reads': 'total_reads',
+    'reads_with_mate_mapped_to_different_reference': 'total_reads',
+    'reads_with_mate_too_distant': 'total_reads',
+    'reads_mapped_and_paired_but_improperly': 'total_reads',
+    'total_autosomal_reads': 'total_reads',
+    'duplicate_autosomal_reads': 'total_autosomal_reads',
+    'total_mitochondrial_reads': 'total_reads',
+    'duplicate_mitochondrial_reads': 'total_mitochondrial_reads',
+}
+
+
+def prepare_for_viewer(data):
+    for name, metrics in data.items():
+        del metrics['peaks']
+        del metrics['peaks_fields']
+
+        metrics['percentages'] = {}
+        for numerator, denominator in PERCENTAGES.items():
+            key = '{}__{}'.format(numerator, denominator)
+            if metrics[denominator] == 0:
+                if metrics[numerator] == 0:
+                    metrics['percentages'][key] = 0.0
+                else:
+                    metrics['percentages'][key] = None
+            else:
+                metrics['percentages'][key] = float(metrics[numerator]) / metrics[denominator] * 100.0
+
+
+def load_metrics(data_directory, metrics_filename):
+    logger.info('Adding metrics file {}'.format(metrics_filename))
+    mf = open_maybe_gzipped(metrics_filename)
+    try:
+        contents = mf.read()
+        collection = json.loads(contents)
+
+        all_metrics_from_file = []
+        for result in collection:
+            metrics = result['metrics']
+            metrics_filename = os.path.join(data_directory, '{}.json.gz'.format(metrics['name']))
+            metrics['metrics_filename'] = metrics_filename
+            metrics['metrics_url'] = os.path.join('data', os.path.basename(metrics_filename))
+
+            metrics['fragment_length_counts'] = prepare_fragment_length_counts(metrics['fragment_length_counts'], args.maximum_fragment_length)
+
+            all_metrics_from_file.append(metrics)
+
+        return all_metrics_from_file
+    except ValueError as e:
+        logger.error('Could not add metrics file {}: {}'.format(metrics_filename, e))
+
+
+def write_metrics(indent, metrics):
+    output_filename = metrics['metrics_filename']
+    del metrics['metrics_filename']
+
+    logger.info('Writing {} metrics to {}'.format(metrics['name'], output_filename))
+
+    with gzip.open(output_filename, 'wt') as output_file:
+        try:
+            new_json = json.dumps([metrics], sort_keys=True, indent=indent, ensure_ascii=False)
+            output_file.write(new_json)
+        except Exception as e:
+            print('Could not write file {}: {}'.format(output_filename, e), file=sys.stderr)
+
+    return metrics
+
+
+if __name__ == '__main__':
+    args = parse_arguments()
+
+    loglevel = args.verbose and logging.DEBUG or logging.INFO
+    logging.basicConfig(level=loglevel, format=LOGGING_FORMAT)
+    logger = logging.getLogger(PROGRAM)
+
+    if args.concurrency > 1:
+        logger.info('Using {:d} concurrent processes to transform ataqv output files'.format(args.concurrency))
+
+    pool = None
+    if args.concurrency > 1:
+        pool = multiprocessing.Pool(processes=args.concurrency, initializer=worker_init)
+
+    if os.path.exists(args.directory):
+        if not args.force:
+            logger.error("""Output directory {} already exists. I won't overwrite it unless given the --force argument.""".format(args.directory))
+            sys.exit(1)
+        else:
+            shutil.rmtree(args.directory)
+
+    for metrics_filename in args.metrics:
+        if not os.path.exists(metrics_filename):
+            logger.error('Error: metrics file {} not found'.format(metrics_filename))
+            sys.exit(1)
+
+    logger.info('Copying web visualizer template directory {} to {}'.format(args.template_directory, args.directory))
+    shutil.copytree(args.template_directory, args.directory)
+
+    data_directory = os.path.join(args.directory, 'data')
+    logger.info('Creating data directory {}'.format(data_directory))
+    os.makedirs(data_directory, 0o0755)
+
+    configuration = {'description': args.description or '', 'metrics': {}}
+
+    loader = functools.partial(load_metrics, data_directory)
+    loaded_metrics = pool and pool.imap(loader, args.metrics) or (loader(metrics_filename) for metrics_filename in args.metrics)
+
+    for metrics_list in loaded_metrics:
+        for metrics in metrics_list:
+            configuration['metrics'][metrics['name']] = metrics
+
+    if args.reference == 'calculate':
+        logger.info('Constructing a reference fragment length distribution from your input.')
+    elif args.reference == 'SRR891268':
+        logger.info('Using SRR891268 as the reference fragment length distribution.')
+    else:
+        logger.info('Loading the reference fragment length distribution from {}.'.format(args.reference))
+
+    add_fragment_length_distances(configuration, args.reference, args.maximum_fragment_length)
+    add_reference_peak_metrics(configuration, args.peak_reference)
+
+    indent = args.indent and 1 or None
+
+    metrics = (metrics for name, metrics in sorted(configuration['metrics'].items()))
+    writer = functools.partial(write_metrics, indent)
+    written_metrics = pool and pool.imap(writer, metrics) or (writer(m) for m in metrics)
+    for metrics in written_metrics:
+        configuration['metrics'][metrics['name']] = metrics
+
+    logger.info('Adding viewer-specific metrics...')
+    prepare_for_viewer(configuration['metrics'])
+
+    data_filename = os.path.join(args.directory, 'js/configuration.js')
+    logger.info('Writing data for ataqv viewer to {}'.format(data_filename))
+    with open(data_filename, 'w') as data_file:
+        data_file.write('ataqv.configure({});'.format(json.dumps(configuration, sort_keys=True, indent=indent, separators=[',', ':'], cls=DecimalEncoder, ensure_ascii=False)))

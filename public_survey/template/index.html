@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Survey of ataqv results with public ATAC-seq data</title>
+        <link rel="stylesheet" href="css/font-awesome.min.css">
+        <link rel="stylesheet" href="css/normalize.css">
+        <link rel="stylesheet" href="css/datatables.min.css"/>
+        <link rel="stylesheet" href="css/datatables.fontawesome.css"/>
+
+        <link rel="stylesheet" href="css/ataqv.css">
+
+        <script src="js/datatables.min.js"></script>
+    </head>
+    <body>
+        <div id="banner">
+            <h1><a href="https://github.com/ParkerLab/ataqv/">ataqv</a></h1>
+            <h1 class="tabs">Survey of public ATAC-seq data</a></h1>
+        </div>
+        <div id="main">
+            <div id="description">
+                We've run our ATAC-seq pipeline, including ataqv, on a selection of freely available public ATAC-seq datasets.
+            </div>
+            <div id="experiments">
+                <table id="datasets" width="100%">
+                    <thead>
+                        <tr>
+                            <th class="name">
+                                ataqv viewer
+                            </th>
+                            <th class="name">
+                                Paper (linked to PubMed)
+                            </th>
+                            <th class="name">
+                                Authors
+                            </th>
+                            <th class="name">
+                                Organism
+                            </th>
+                            <th class="name">
+                                Source material
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><a href="PRJNA207663/">PRJNA207663</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/24097267">Transposition of native chromatin for fast and sensitive epigenomic profiling of open chromatin, DNA-binding proteins and nucleosome position.</a></td>
+                            <td>Buenrostro JD, Giresi PG, Zaba LC, Chang HY, Greenleaf WJ</td>
+                            <td>Homo sapiens</td>
+                            <td>GM12878 cells, CD4+ T cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA259243/">PRJNA259243</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26251845">Individuality and variation of personal regulomes in primary human T cells.</a></td>
+                            <td>Qu K, Zaba LC, Giresi PG, Li R, Longmire M, Kim YH, Greenleaf WJ, Chang HY</td>
+                            <td>Homo sapiens</td>
+                            <td>CD4+ T cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA279685/">PRJNA279685</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26683334">A novel ATAC-seq approach reveals lineage-specific reinforcement of the open chromatin landscape via cooperation between BAF and p63.</a></td>
+                            <td>Bao X, Rubin A, Kun Q, Chang HY, Khavari P</td>
+                            <td>Homo sapiens</td>
+                            <td>neonatal keratinocyte</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA290920/">PRJNA290920</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/27249108">ATAC-seq on biobanked specimens defines a unique chromatin accessibility structure in naïve SLE B cells.</a></td>
+                            <td>Scharer CD, Boss J</td>
+                            <td>Homo sapiens</td>
+                            <td>CD19+ B cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA296371/">PRJNA296371</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26607380">Leukemia-Associated Cohesin Mutants Dominantly Enforce Stem Cell Programs and Impair Human Hematopoietic Progenitor Differentiation.</a></td>
+                            <td>Mazumdar C, Shen Y, Xavy S, Zhao F, Reinisch A, Li R, Corces MR, Flynn RA, Buenrostro JD, Chan SM, Thomas D, Koenig JL, Hong WJ, Chang HY, Majeti R</td>
+                            <td>Homo sapiens</td>
+                            <td>CD34+ HSPC</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA306754/">PRJNA306754</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26977395">Integration of ATAC-seq and RNA-seq identifies human alpha cell and beta cell signature genes.</a></td>
+                            <td>Ackermann AM, Wang Z, Schug J, Naji A, Kaestner KH</td>
+                            <td>Homo sapiens</td>
+                            <td>pancreatic islets</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA319573/">PRJNA319573</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/27419872">Mapping the Pairwise Choices Leading from Pluripotency to Human Bone, Heart, and Other Mesoderm Cell Types.</a></td>
+                            <td>Loh KM, Chen A, Koh PW, Deng TZ, Sinha R, Tsai JM, Barkal AA, Shen KY, Jain R, Morganti RM, Shyh-Chang N, Fernhoff NB, George BM, Wernig G, Salomon REA, Chen Z, Vogel H, Epstein JA, Kundaje A, Talbot WS, Beachy PA, Ang LT, Weissman IL</td>
+                            <td>Homo sapiens</td>
+                            <td>embryonic stem cell</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA326967/">PRJNA326967</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28973438">p53 regulates enhancer accessibility and activity in response to DNA damage.</a></td>
+                            <td>Younger ST, Rinn JL</td>
+                            <td>Homo sapiens</td>
+                            <td>fetal skin fibroblasts</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA358685/">PRJNA358685</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28472346">A c-Myb mutant causes deregulated differentiation due to impaired histone binding and abrogated pioneer factor function.</a></td>
+                            <td>Fuglerud BM, Lemma RB, Wanichawan P, Sundaram AYM, Eskeland R, Gabrielsen OS</td>
+                            <td>Homo sapiens</td>
+                            <td>erythroleukemic cell line (K562)</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA396048/">PRJNA396048</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5643100/">Chromatin accessibility underlies synthetic lethality of SWI/SNF subunits in ARID1A-mutant cancers.</a></td>
+                            <td>Kelso TWR, Porter DK, Amaral ML, Shokhirev MN, Benner C, Hargreaves DC</td>
+                            <td>Homo sapiens</td>
+                            <td>HCT116 and TOV21G cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA242521/">PRJNA242521</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26697350">Genomic-wide transcriptional profiling in primary myoblasts reveals Runx1-regulated genes in muscle regeneration.</a></td>
+                            <td>Umansky KB, Feldmesser E, Groner Y</td>
+                            <td>Mus musculus</td>
+                            <td>Primary proliferating myoblasts</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA274006/">PRJNA274006</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26083756">Single-cell chromatin accessibility reveals principles of regulatory variation.</a></td>
+                            <td>Buenrostro JD, Wu B, Litzenburger UM, Ruff D, Gonzales ML, Snyder MP, Chang HY, Greenleaf WJ</td>
+                            <td>Homo sapiens; Mus musculus</td>
+                            <td>Human: H1 human embryonic stem cells [ESCs], K562 chronic myelogenous leukemia cells; GM12878 lymphoblastoid cells; TF-1 (erythroblast); HL-60 (promyeloblast); BJ fibroblasts (foreskin fibroblast)<br/>Mouse: mouse ESCs; EML1 (mouse hematopoietic progenitor)</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA290471/">PRJNA290471</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/27437574">Structural organization of the inactive X chromosome in the mouse.</a></td>
+                            <td>Giorgetti L, Lajoie BR, Carter AC, Attia M, Zhan Y, Xu J, Chen CJ, Kaplan N, Chang HY, Heard E, Dekker J</td>
+                            <td>Mus musculus</td>
+                            <td>neural progenitor cells; embryonic stem cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA261246/">PRJNA261246</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/26412561">Hematopoietic Differentiation Is Required for Initiation of Acute Myeloid Leukemia.</a></td>
+                            <td>Ye M, Zhang H, Yang H, Koche R, Staber PB, Cusan M, Levantini E, Welner RS, Bach CS, Zhang J, Krivtsov AV, Armstrong SA, Tenen DG</td>
+                            <td>Mus musculus</td>
+                            <td>MLL-AF9 leukemic cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA323617.PRJNA341508/">PRJNA323617.PRJNA341508</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28166220">Neuronal activity modifies the chromatin accessibility landscape in the adult brain.</a></td>
+                            <td>Su Y, Shin J, Zhong C, Wang S, Roychowdhury P, Lim J, Kim D, Ming GL, Song H</td>
+                            <td>Mus musculus</td>
+                            <td>dentate granule neurons</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA325538/">PRJNA325538</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28256534">Cell Type-Specific Epigenomic Analysis Reveals a Uniquely Closed Chromatin Architecture in Mouse Rod Photoreceptors.</a></td>
+                            <td>Hughes AE, Enright JM, Myers CA, Shen SQ, Corbo JC</td>
+                            <td>Mus musculus</td>
+                            <td>rods; green cones; Nrl-/- photoreceptors</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA330723/">PRJNA330723</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28112738">Landscape of monoallelic DNA accessibility in mouse embryonic stem cells and neural progenitor cells.</a></td>
+                            <td>Carter AC, Xu J, Chang HY</td>
+                            <td>Mus musculus</td>
+                            <td>embryonic stem cells; neural progenitor cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA345167/">PRJNA345167</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28112643">Layer-specific chromatin accessibility landscapes reveal regulatory networks in adult mouse visual cortex.</a></td>
+                            <td>Gray LT, Yao Z, Nguyen TN, Kim TK, Zeng H, Tasic B</td>
+                            <td>Mus musculus</td>
+                            <td>adult mouse cortex</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA349462/">PRJNA349462</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28283662">Exhaustion-associated regulatory regions in CD8+ tumor-infiltrating T cells.</a></td>
+                            <td>Mognol GP, Spreafico R, Wong V, Scott-Browne JP, Togher S, Hoffmann A, Hogan PG, Rao A, Trifari S</td>
+                            <td>Mus musculus</td>
+                            <td>CD8 T cell</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA352791/">PRJNA352791</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/27911843">Impact of the gut microbiota on enhancer accessibility in gut intraepithelial lymphocytes.</a></td>
+                            <td>Semenkovich NP, Planer JD, Ahern PP, Griffin NW, Lin CY, Gordon JI</td>
+                            <td>Mus musculus</td>
+                            <td>intraepithelial lymphocyte; peripheral blood lymphocyte</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA369195/">PRJNA369195</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28174238">Functional characterisation of cis-regulatory elements governing dynamic Eomes expression in the early mouse embryo.</a></td>
+                            <td>Simon CS, Downes DJ, Gosden ME, Telenius J, Higgs DR, Hughes JR, Costello I, Bikoff EK, Robertson EJ</td>
+                            <td>Mus musculus</td>
+                            <td>definitive endoderm; embryonic stem cell</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA371831/">PRJNA371831</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28754907">Mapping the chromatin landscape and Blimp1 transcriptional targets that regulate trophoblast differentiation.</a></td>
+                            <td>Nelson AC, Mould AW, Bikoff EK, Robertson EJ</td>
+                            <td>Mus musculus</td>
+                            <td>differentiated trophoblast stem cells; trophoblast stem cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA380283/">PRJNA380283</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5623106/">An improved ATAC-seq protocol reduces background and enables interrogation of frozen tissues.</a></td>
+                            <td>Corces MR, Trevino AE, Hamilton EG, Greenside PG, Sinnott-Armstrong NA, Vesuna S, Satpathy AT, Rubin AJ, Montine KS, Wu B, Kathiria A, Cho SW, Mumbach MR, Carter AC, Kasowski M, Orloff LA, Risca VI, Kundaje A, Khavari PA, Montine TJ, Greenleaf WJ, Chang HY</td>
+                            <td>Homo sapiens; Mus musculus</td>
+                            <td>CD19/20+ B cells, fresh from peripheral blood;
+                                CD4+ T cells, fresh from peripheral blood;
+                                Human acute T cell leukemia cell line;
+                                Human B lymphoblastoid cell line;
+                                Human chronic myelogenous leukemia cell line;
+                                Human embryonic kidney cell line;
+                                Human fibrosarcoma cell line;
+                                Human urinary bladder transitional cell carcinoma cell line;
+                                mESC v6.5;
+                                Murine bulk colon, C57BL/6;
+                                Murine bulk heart, C57BL/6;
+                                Murine bulk liver, C57BL/6;
+                                Murine bulk lung, C57BL/6;
+                                Murine bulk spleen, C57BL/6;
+                                Occipital lobe;
+                                Primary human keratinocytes, from foreskin;
+                                Primary human thyroid cancer, unspecified</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA380816/">PRJNA380816</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28555639">Clonally stable Vκ allelic choice instructs Igκ repertoire.</a></td>
+                            <td>Levin-Klein R, Fraenkel S, Lichtenstein M, Matheson LS, Bartok O, Nevo Y, Kadener S, Corcoran AE, Cedar H, Bergman Y</td>
+                            <td>Mus musculus</td>
+                            <td>Bone marrow derived pre-B cell</td>
+                        </tr>
+
+                        
+                        <tr>
+                            <td><a href="PRJNA388786/">PRJNA388786</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28931935">Alpha TC1 and Beta-TC-6 genomic profiling uncovers both shared and distinct transcriptional regulatory features with their primary islet counterparts.</a></td>
+                            <td>Lawlor N, Youn A, Kursawe R, Ucar D, Stitzel ML</td>
+                            <td>Mus musculus</td>
+                            <td>Alpha TC1 (αTC1) and Beta-TC-6 (βTC6) mouse islet cell lines</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA394116/">PRJNA394116</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/28954238">Rapid Chromatin Switch in the Direct Reprogramming of Fibroblasts to Neurons.</a></td>
+                            <td>Wapinski OL, Lee QY, Chen AC, Li R, Corces MR, Ang CE, Treutlein B, Xiang C, Baubet V, Suchy FP, Sankar V, Sim S, Quake SR, Dahmane N, Wernig M, Chang HY</td>
+                            <td>Mus musculus</td>
+                            <td>mouse embryonic fibroblasts; TauEGFP+ cells</td>
+                        </tr>
+
+                        <tr>
+                            <td><a href="PRJNA412907/">PRJNA412907</a></td>
+                            <td><a href="https://www.ncbi.nlm.nih.gov/pubmed/29046480">Epigenetic mechanisms underlying maternal diabetes-associated risk of congenital heart disease.</a></td>
+                            <td>Basu M, Zhu JY, LaHaye S, Majumdar U, Jiao K, Han Z, Garg V</td>
+                            <td>Mus musculus</td>
+                            <td>atrioventricular mesenchymal (AVM) cells</td>
+                        </tr>
+
+                    </tbody>
+                </table>
+                <div class="footer">
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function initialize() {
+                $('#datasets').DataTable( {
+                    ordering: [[0, 'asc'], [1, 'asc'], [2, 'asc']],
+                    pageLength: 50,
+                    responsive: true,
+                    stateSave: true
+                });
+            };
+
+            function ready(fn) {
+                if (document.readyState != 'loading') {
+                    fn();
+                } else {
+                    document.addEventListener('DOMContentLoaded', fn);
+                }}
+            ready(initialize);
+        </script>
+    </body>
+</html>
